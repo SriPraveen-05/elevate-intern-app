@@ -3,6 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import ReadinessCircular from "@/components/ReadinessCircular";
+import DigitalLogbook from "@/components/DigitalLogbook";
+import MentoringSection from "@/components/MentoringSection";
+import CreditCalculator from "@/components/CreditCalculator";
 import { 
   BookOpen, 
   Briefcase, 
@@ -83,6 +87,12 @@ const StudentPortal = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Readiness Dashboard */}
+            <ReadinessCircular />
+
+            {/* Digital Logbook */}
+            <DigitalLogbook />
+
             {/* Available Internships */}
             <Card>
               <CardHeader>
@@ -131,6 +141,12 @@ const StudentPortal = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Mentoring Section */}
+            <MentoringSection />
+
+            {/* Credit Calculator */}
+            <CreditCalculator />
+
             {/* Skill Modules */}
             <Card>
               <CardHeader>

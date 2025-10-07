@@ -2,6 +2,8 @@ import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import InternshipAnalytics from "@/components/InternshipAnalytics";
+import CreditCalculator from "@/components/CreditCalculator";
 import { 
   Shield,
   TrendingUp,
@@ -171,6 +173,12 @@ const AdminPortal = () => {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
+            {/* Analytics Chart */}
+            <InternshipAnalytics />
+
+            {/* Credit Calculator */}
+            <CreditCalculator />
+
             <div className="grid lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
