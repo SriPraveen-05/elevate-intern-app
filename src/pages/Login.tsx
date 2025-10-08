@@ -46,7 +46,7 @@ export default function Login() {
                 <Label htmlFor="role">Role</Label>
                 <select id="role" className="w-full border rounded-md h-10 px-3 bg-background" value={role} onChange={(e) => setRole(e.target.value as any)}>
                   <option value="student">Student</option>
-                  <option value="faculty">Faculty</option>
+                  <option value="faculty">Mentor</option>
                   <option value="admin">Admin</option>
                   <option value="industry">Industry</option>
                   <option value="alumni">Alumni</option>

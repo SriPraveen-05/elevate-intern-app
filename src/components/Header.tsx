@@ -27,7 +27,7 @@ const Header = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
           <Link to="/faculty" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-            Faculty
+            Mentor
           </Link>
           <Link to="/alumni" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
             Alumni
