@@ -1,80 +1,64 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Video, Calendar } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { User, Calendar } from "lucide-react";
+import { useMentors, useMentoringSessions, useRequestMentoringSession } from "@/hooks/useData";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const MentoringSection = () => {
-  const mentoringSessions = [
-    {
-      title: "Alumni Q&A",
-      schedule: "Saturdays 5 PM",
-      type: "group",
-      icon: MessageCircle,
-    },
-    {
-      title: "Mock Interviews",
-      schedule: "Book a slot",
-      type: "one-on-one",
-      icon: Video,
-    },
-    {
-      title: "Career Guidance",
-      schedule: "Weekdays 6-8 PM",
-      type: "group",
-      icon: Calendar,
-    },
-  ];
+  const { data: mentors = [] } = useMentors();
+  const { user } = useAuth();
+  const studentName = user?.name || "Student";
+  const { data: sessions = [] } = useMentoringSessions(studentName);
+  const requestSession = useRequestMentoringSession();
+  const { toast } = useToast();
+
+  const handleRequest = async (mentorId: string) => {
+    await requestSession.mutateAsync({ studentName, mentorId, time: new Date().toISOString() });
+    toast({ title: "Session Requested", description: "Mentor will confirm soon." });
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Mentoring</CardTitle>
+        <CardTitle>Alumni & Faculty Mentoring</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {mentoringSessions.map((session, index) => (
+        {mentors.map((mentor) => (
           <div
-            key={index}
-            className="flex items-center justify-between p-4 border border-border rounded-lg hover:shadow-sm transition-shadow"
+            key={mentor.id}
+            className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <session.icon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="font-semibold">{session.title}</div>
-                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {session.schedule}
-                </div>
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{mentor.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">{mentor.type}</p>
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {mentor.tags.slice(0, 3).map((tag, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] px-1 py-0">{tag}</Badge>
+                ))}
               </div>
             </div>
-            <Button size="sm" variant="outline">
-              Join
-            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleRequest(mentor.id)}>Request</Button>
           </div>
         ))}
-
-        {/* Recent Mentoring Activity */}
-        <div className="pt-4 border-t">
-          <h4 className="font-semibold mb-3 text-sm">Recent Sessions</h4>
-          <div className="space-y-2">
-            <div className="flex items-start gap-3 text-sm">
-              <div className="w-2 h-2 rounded-full bg-accent mt-1.5" />
-              <div>
-                <span className="font-medium">Resume Review</span>
-                <span className="text-muted-foreground"> with Rahul Kumar</span>
-                <div className="text-xs text-muted-foreground">2 days ago</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 text-sm">
-              <div className="w-2 h-2 rounded-full bg-accent mt-1.5" />
-              <div>
-                <span className="font-medium">Mock Interview</span>
-                <span className="text-muted-foreground"> with Priya Sharma</span>
-                <div className="text-xs text-muted-foreground">5 days ago</div>
-              </div>
-            </div>
+        {sessions.length > 0 && (
+          <div className="pt-2 border-t border-border">
+            <div className="text-xs text-muted-foreground mb-2">Your Sessions ({sessions.length})</div>
+            {sessions.slice(0, 2).map((s) => {
+              const mentor = mentors.find(m => m.id === s.mentorId);
+              return (
+                <div key={s.id} className="flex items-center justify-between text-xs p-2 bg-muted/20 rounded mb-1">
+                  <span>{mentor?.name || "Mentor"}</span>
+                  <Badge variant="secondary" className="text-[10px]">{s.status}</Badge>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

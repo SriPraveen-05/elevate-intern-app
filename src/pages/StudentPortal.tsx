@@ -4,9 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import ReadinessCircular from "@/components/ReadinessCircular";
-import DigitalLogbook from "@/components/DigitalLogbook";
 import MentoringSection from "@/components/MentoringSection";
-import CreditCalculator from "@/components/CreditCalculator";
+import { useAddLogbookEntry, useApplyToInternship, useApplications, useLogbook, useModules, usePostings, useUpsertModuleProgress, useModuleProgress, useBadges, useAwardBadge, useStudentProfile } from "@/hooks/useData";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { computeCredits } from "@/lib/storage";
 import { 
   BookOpen, 
   Briefcase, 
@@ -14,10 +20,90 @@ import {
   TrendingUp, 
   Clock,
   MapPin,
-  Building2 
+  Building2,
+  Lightbulb,
+  Trophy,
+  AlertCircle,
+  User
 } from "lucide-react";
 
 const StudentPortal = () => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { data: logbook = [] } = useLogbook();
+  const { data: postingsData = [] } = usePostings();
+  const { data: applications = [] } = useApplications();
+  const addLogbook = useAddLogbookEntry();
+  const applyMutation = useApplyToInternship();
+  const [entryDate, setEntryDate] = useState("");
+  const [entryHours, setEntryHours] = useState("");
+  const [entrySummary, setEntrySummary] = useState("");
+  const { user } = useAuth();
+  const currentStudentName = user?.name || "Student";
+  
+  // Load all data first
+  const { data: modules = [] } = useModules();
+  const { data: moduleProgress = [] } = useModuleProgress(currentStudentName);
+  const upsertProgress = useUpsertModuleProgress();
+  const { data: badges = [] } = useBadges(currentStudentName);
+  const awardBadge = useAwardBadge();
+  const { data: profile } = useStudentProfile(currentStudentName);
+  
+  // Calculate derived values
+  const myApplications = applications.filter(a => a.studentName === currentStudentName);
+  const myPending = myApplications.filter(a => a.status === "pending").length;
+  const verifiedHours = logbook.filter(e => e.verified).reduce((s, e) => s + (e.hours || 0), 0);
+  
+  // Get completed modules and compute credits
+  const completedModules = moduleProgress.filter(p => p.progress >= 100);
+  const completedModuleData = completedModules
+    .map(p => modules.find(m => m.id === p.moduleId))
+    .filter(Boolean);
+  
+  const credits = computeCredits({ 
+    verifiedHours, 
+    completedModules: completedModuleData as any 
+  });
+
+  // AI-based recommendations: rule-based skills match
+  const studentSkills = new Set<string>();
+  completedModules.forEach(p => {
+    const mod = modules.find(m => m.id === p.moduleId);
+    if (mod?.title.includes('React') || mod?.title.includes('Technical')) studentSkills.add('React');
+    if (mod?.title.includes('Communication')) studentSkills.add('Communication');
+  });
+  const recommendations = postingsData
+    .filter(p => p.verified)
+    .map(p => ({ posting: p, score: p.skills?.filter(s => studentSkills.has(s)).length || 0 }))
+    .filter(r => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  const handleAddEntry = async () => {
+    if (!entryDate || !entryHours || !entrySummary) {
+      toast({ title: "Missing fields", description: "Please fill date, hours and summary." });
+      return;
+    }
+    await addLogbook.mutateAsync({ date: entryDate, hours: Number(entryHours), summary: entrySummary, verified: false });
+    setEntryDate("");
+    setEntryHours("");
+    setEntrySummary("");
+    toast({ title: "Entry added", description: "Your logbook entry was saved." });
+  };
+
+  const handleApply = async (internship: { id: string; title: string; company: string }) => {
+    await applyMutation.mutateAsync({
+      studentName: currentStudentName,
+      status: "pending",
+      internshipId: internship.id,
+      internshipTitle: internship.title,
+      company: internship.company,
+      appliedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    } as any);
+    toast({ title: "Applied!", description: `Application submitted to ${internship.company}` });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -50,10 +136,10 @@ const StudentPortal = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold">5</span>
+                <span className="text-2xl font-bold">{myApplications.length}</span>
                 <Briefcase className="h-5 w-5 text-primary" />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">3 under review</p>
+              <p className="text-xs text-muted-foreground mt-1">{myPending} under review</p>
             </CardContent>
           </Card>
 
@@ -76,7 +162,7 @@ const StudentPortal = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold">8</span>
+                <span className="text-2xl font-bold">{credits}</span>
                 <Award className="h-5 w-5 text-accent" />
               </div>
               <p className="text-xs text-muted-foreground mt-1">This semester</p>
@@ -91,16 +177,78 @@ const StudentPortal = () => {
             <ReadinessCircular />
 
             {/* Digital Logbook */}
-            <DigitalLogbook />
+            {/* Digital Logbook (wired) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Digital Logbook</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="md:col-span-3">
+                    <Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Input type="number" placeholder="Hours" value={entryHours} onChange={(e) => setEntryHours(e.target.value)} />
+                  </div>
+                  <div className="md:col-span-5">
+                    <Textarea placeholder="Summary of work" className="min-h-[40px]" value={entrySummary} onChange={(e) => setEntrySummary(e.target.value)} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Button className="w-full h-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleAddEntry}>Add</Button>
+                  </div>
+                </div>
 
-            {/* Available Internships */}
+                <div className="space-y-3">
+                  {logbook.map((entry, index) => (
+                    <div key={index} className="flex flex-col md:flex-row md:items-center justify-between p-4 border border-border rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-semibold mb-1">
+                          <span className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            {entry.date}
+                            <span className="text-muted-foreground font-normal">•</span>
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            {entry.hours}h
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{entry.summary}</p>
+                      </div>
+                      <div className="mt-3 md:mt-0">
+                        {entry.verified ? (
+                          <Badge className="bg-accent text-accent-foreground">Verified</Badge>
+                        ) : (
+                          <Badge variant="secondary">Pending</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{logbook.length}</div>
+                    <div className="text-xs text-muted-foreground">Total Entries</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{logbook.reduce((s, e) => s + (e.hours || 0), 0)}</div>
+                    <div className="text-xs text-muted-foreground">Total Hours</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{Math.round((logbook.filter(e => e.verified).length / (logbook.length || 1)) * 100)}%</div>
+                    <div className="text-xs text-muted-foreground">Verified</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Available Internships (verified postings) */}
             <Card>
               <CardHeader>
                 <CardTitle>Available Internships</CardTitle>
                 <CardDescription>Verified opportunities matching your profile</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {internships.map((internship, index) => (
+                {postingsData.filter(p => p.verified).map((internship, index) => (
                   <div key={index} className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -130,8 +278,8 @@ const StudentPortal = () => {
                       ))}
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" className="flex-1">Apply Now</Button>
-                      <Button size="sm" variant="outline">View Details</Button>
+                      <Button size="sm" className="flex-1" onClick={() => handleApply(internship)}>Apply Now</Button>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/internships/${encodeURIComponent(internship.title)}`)}>View Details</Button>
                     </div>
                   </div>
                 ))}
@@ -144,28 +292,53 @@ const StudentPortal = () => {
             {/* Mentoring Section */}
             <MentoringSection />
 
-            {/* Credit Calculator */}
-            <CreditCalculator />
+            {/* AI Recommendations */}
+            {recommendations.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-accent" />
+                    AI Recommendations
+                  </CardTitle>
+                  <CardDescription>Internships matched to your skills</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {recommendations.map((r, i) => (
+                    <div key={i} className="p-3 bg-muted/30 rounded-lg">
+                      <div className="text-sm font-medium">{r.posting.title}</div>
+                      <div className="text-xs text-muted-foreground">{r.posting.company} • Match: {r.score} skills</div>
+                      <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => handleApply(r.posting)}>Apply Now</Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Skill Modules */}
+            {/* Skill Modules (dynamic) */}
             <Card>
               <CardHeader>
                 <CardTitle>Recommended Modules</CardTitle>
                 <CardDescription>Boost your readiness score</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {modules.map((module, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">{module.name}</span>
-                      <span className="text-xs text-muted-foreground">{module.progress}%</span>
+                {modules.map((mod) => {
+                  const prog = moduleProgress.find(p => p.moduleId === mod.id)?.progress ?? 0;
+                  const isDone = prog >= 100;
+                  return (
+                    <div key={mod.id} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm font-medium">{mod.title}</div>
+                        {isDone ? (
+                          <Badge variant="default">Completed</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{prog}%</span>
+                        )}
+                      </div>
+                      <Progress value={prog} />
+                      <div className="text-xs text-muted-foreground">{mod.description}</div>
                     </div>
-                    <Progress value={module.progress} className="h-2" />
-                    <Button size="sm" variant="outline" className="w-full text-xs">
-                      {module.progress === 100 ? "Review" : "Continue"}
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
 
@@ -193,38 +366,7 @@ const StudentPortal = () => {
   );
 };
 
-const internships = [
-  {
-    title: "Full Stack Development Intern",
-    company: "TechCorp India",
-    location: "Bangalore",
-    duration: "3 months",
-    verified: true,
-    skills: ["React", "Node.js", "MongoDB"]
-  },
-  {
-    title: "Data Analytics Intern",
-    company: "DataViz Solutions",
-    location: "Remote",
-    duration: "6 months",
-    verified: true,
-    skills: ["Python", "SQL", "Tableau"]
-  },
-  {
-    title: "UI/UX Design Intern",
-    company: "Creative Studios",
-    location: "Mumbai",
-    duration: "4 months",
-    verified: true,
-    skills: ["Figma", "User Research", "Prototyping"]
-  }
-];
-
-const modules = [
-  { name: "Communication Skills", progress: 100 },
-  { name: "Technical Interview Prep", progress: 60 },
-  { name: "Professional Ethics", progress: 30 }
-];
+// internships are sourced from postingsData now
 
 const activities = [
   { title: "Application submitted to TechCorp", time: "2 hours ago" },
