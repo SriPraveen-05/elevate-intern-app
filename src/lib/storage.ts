@@ -20,6 +20,7 @@ export type StudentApplication = {
   internshipTitle: string;
   company: string;
   appliedAt: string;
+  readinessScore?: number;
   rejectionReason?: string;
   rejectionCategory?: "skills" | "experience" | "location" | "other";
   createdAt: string;
@@ -237,11 +238,11 @@ export function computeCredits(args: { verifiedHours: number; completedModules: 
   return hoursCredits + moduleCredits;
 }
 
-// ---------- Mentoring (Alumni/Faculty) ----------
+// ---------- Mentoring (Faculty) ----------
 export type Mentor = {
   id: string;
   name: string;
-  type: 'alumni' | 'faculty';
+  type: 'faculty';
   tags: string[];
   bio?: string;
 };
@@ -258,8 +259,8 @@ export function listMentors(): Mentor[] {
   const seeded = readJson<Mentor[]>(STORAGE_KEYS.mentors, []);
   if (seeded.length) return seeded;
   const defaults: Mentor[] = [
-    { id: generateId('m'), name: 'Anjali (Alumni - React Dev)', type: 'alumni', tags: ['React', 'Frontend'] },
-    { id: generateId('m'), name: 'Ravi (Alumni - Backend)', type: 'alumni', tags: ['Node', 'APIs'] },
+    { id: generateId('m'), name: 'Dr. Johnson (Faculty)', type: 'faculty', tags: ['React', 'Frontend'] },
+    { id: generateId('m'), name: 'Dr. Williams (Faculty)', type: 'faculty', tags: ['Node', 'APIs'] },
     { id: generateId('m'), name: 'Dr. Kumar (Faculty)', type: 'faculty', tags: ['DSA', 'Systems'] },
   ];
   writeJson(STORAGE_KEYS.mentors, defaults);

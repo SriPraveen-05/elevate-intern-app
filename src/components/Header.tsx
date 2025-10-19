@@ -29,9 +29,6 @@ const Header = () => {
           <Link to="/faculty" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
             Mentor
           </Link>
-          <Link to="/alumni" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-            Alumni
-          </Link>
           {user?.role === "student" && (
             <Link to="/profile" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
               <User className="h-4 w-4 inline mr-1" />

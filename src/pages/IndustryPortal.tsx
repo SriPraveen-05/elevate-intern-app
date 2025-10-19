@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { 
   Plus,
   Users, 
@@ -12,10 +13,24 @@ import {
   CheckCircle,
   Clock,
   FileText,
-  Search
+  Search,
+  Calendar,
+  MessageSquare,
+  Star,
+  TrendingUp,
+  BarChart3,
+  Settings,
+  Bell,
+  Award,
+  Target,
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  Globe
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useApplications, useApprovePosting, useCreatePosting, usePostings, useUpdateApplicationStatus, useCompanyVerifications, useSubmitCompanyVerification, useAddNotification } from "@/hooks/useData";
+import { useApplications, useApprovePosting, useCreatePosting, usePostings, useUpdateApplicationStatus, useCompanyVerifications, useSubmitCompanyVerification, useAddNotification, useEvents, useCreateEvent, useIndustryFeedback, useSubmitIndustryFeedback } from "@/hooks/useData";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -23,9 +38,13 @@ import { useAuth } from "@/context/AuthContext";
 const IndustryPortal = () => {
   const { data: postingsData = [] } = usePostings();
   const { data: applicationsData = [] } = useApplications();
+  const { data: events = [] } = useEvents();
+  const { data: feedback = [] } = useIndustryFeedback();
   const createPosting = useCreatePosting();
   const approvePosting = useApprovePosting();
   const updateApp = useUpdateApplicationStatus();
+  const createEvent = useCreateEvent();
+  const submitFeedback = useSubmitIndustryFeedback();
   const { data: companyVerifications = [] } = useCompanyVerifications();
   const submitVerification = useSubmitCompanyVerification();
   const addNotification = useAddNotification();
@@ -40,6 +59,17 @@ const IndustryPortal = () => {
   const [skills, setSkills] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
+  
+  // Event management state
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDescription, setEventDescription] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventType, setEventType] = useState<"webinar" | "workshop" | "challenge" | "meetup">("webinar");
+  
+  // Feedback state
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [selectedStudent, setSelectedStudent] = useState("");
 
   const companyName = user?.name || "Your Company";
   const myVerification = companyVerifications.find(v => v.companyName === companyName);
@@ -102,6 +132,56 @@ const IndustryPortal = () => {
     await updateApp.mutateAsync({ id, status: "rejected" });
     addNotification.mutate({ userRole: "student", title: "Application Rejected", body: "Your internship application was rejected." });
     toast({ title: "Rejected", description: "Application rejected." });
+  };
+
+  const handleCreateEvent = async () => {
+    if (!eventTitle || !eventDescription || !eventDate) {
+      toast({ title: "Missing fields", description: "Please fill in all event fields." });
+      return;
+    }
+    
+    try {
+      await createEvent.mutateAsync({
+        title: eventTitle,
+        description: eventDescription,
+        date: eventDate,
+        type: eventType,
+        company: companyName,
+        attendees: 0
+      });
+      
+      setEventTitle("");
+      setEventDescription("");
+      setEventDate("");
+      setEventType("webinar");
+      toast({ title: "Event created", description: "Your event has been posted." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create event." });
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackText || !selectedStudent) {
+      toast({ title: "Missing fields", description: "Please fill in feedback and select a student." });
+      return;
+    }
+    
+    try {
+      await submitFeedback.mutateAsync({
+        studentName: selectedStudent,
+        company: companyName,
+        rating: feedbackRating,
+        feedback: feedbackText,
+        category: "performance"
+      });
+      
+      setFeedbackText("");
+      setFeedbackRating(5);
+      setSelectedStudent("");
+      toast({ title: "Feedback submitted", description: "Your feedback has been recorded." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to submit feedback." });
+    }
   };
 
   return (
@@ -175,9 +255,12 @@ const IndustryPortal = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="postings">My Postings</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="feedback">Feedback</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="create">Create New</TabsTrigger>
           </TabsList>
 
@@ -270,6 +353,306 @@ const IndustryPortal = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Events Tab */}
+          <TabsContent value="events" className="space-y-4">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    My Events
+                  </CardTitle>
+                  <CardDescription>Manage your company events and webinars</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {events.filter(e => e.company === companyName).map((event, index) => (
+                    <div key={index} className="border border-border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-semibold">{event.title}</h3>
+                          <p className="text-sm text-muted-foreground">{event.description}</p>
+                        </div>
+                        <Badge variant="outline">{event.type}</Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(event.date).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {event.attendees} attendees
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create New Event</CardTitle>
+                  <CardDescription>Post webinars, workshops, or challenges</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="event-title">Event Title</Label>
+                    <Input 
+                      id="event-title" 
+                      placeholder="e.g., React Workshop" 
+                      value={eventTitle} 
+                      onChange={(e) => setEventTitle(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="event-type">Event Type</Label>
+                    <select 
+                      id="event-type" 
+                      className="w-full border rounded-md h-10 px-3 bg-background" 
+                      value={eventType} 
+                      onChange={(e) => setEventType(e.target.value as any)}
+                    >
+                      <option value="webinar">Webinar</option>
+                      <option value="workshop">Workshop</option>
+                      <option value="challenge">Challenge</option>
+                      <option value="meetup">Meetup</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="event-date">Event Date</Label>
+                    <Input 
+                      id="event-date" 
+                      type="datetime-local" 
+                      value={eventDate} 
+                      onChange={(e) => setEventDate(e.target.value)} 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="event-description">Description</Label>
+                    <Textarea 
+                      id="event-description" 
+                      placeholder="Describe your event..." 
+                      value={eventDescription} 
+                      onChange={(e) => setEventDescription(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <Button onClick={handleCreateEvent} className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Event
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Feedback Tab */}
+          <TabsContent value="feedback" className="space-y-4">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Submit Feedback
+                  </CardTitle>
+                  <CardDescription>Provide feedback on student performance</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="student-select">Select Student</Label>
+                    <select 
+                      id="student-select" 
+                      className="w-full border rounded-md h-10 px-3 bg-background" 
+                      value={selectedStudent} 
+                      onChange={(e) => setSelectedStudent(e.target.value)}
+                    >
+                      <option value="">Choose a student...</option>
+                      {applicationsData.map((app) => (
+                        <option key={app.id} value={app.studentName}>
+                          {app.studentName} - {app.internshipTitle}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Rating</Label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setFeedbackRating(star)}
+                          className={`p-1 ${star <= feedbackRating ? 'text-yellow-500' : 'text-gray-300'}`}
+                        >
+                          <Star className="h-5 w-5 fill-current" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="feedback-text">Feedback</Label>
+                    <Textarea 
+                      id="feedback-text" 
+                      placeholder="Provide detailed feedback on the student's performance..." 
+                      value={feedbackText} 
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  <Button onClick={handleSubmitFeedback} className="w-full">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Submit Feedback
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Feedback</CardTitle>
+                  <CardDescription>Your submitted feedback</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {feedback.filter(f => f.company === companyName).map((fb, index) => (
+                    <div key={index} className="border border-border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-semibold">{fb.studentName}</h3>
+                          <p className="text-sm text-muted-foreground">{fb.category}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star 
+                              key={star} 
+                              className={`h-4 w-4 ${star <= fb.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} 
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm">{fb.feedback}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(fb.submittedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Applications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">{applicationsData.length}</span>
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Acceptance Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">
+                      {Math.round((applicationsData.filter(a => a.status === "accepted").length / applicationsData.length) * 100)}%
+                    </span>
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Events Hosted</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">{events.filter(e => e.company === companyName).length}</span>
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Avg Rating</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold">
+                      {feedback.length > 0 ? (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1) : 'N/A'}
+                    </span>
+                    <Star className="h-5 w-5 text-yellow-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Performance Insights
+                </CardTitle>
+                <CardDescription>Analytics and trends for your company</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <h4 className="font-medium mb-2">Application Trends</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">This Month</span>
+                        <span className="text-sm font-medium">{applicationsData.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Accepted</span>
+                        <span className="text-sm font-medium text-green-600">
+                          {applicationsData.filter(a => a.status === "accepted").length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Pending</span>
+                        <span className="text-sm font-medium text-yellow-600">
+                          {applicationsData.filter(a => a.status === "pending").length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <h4 className="font-medium mb-2">Student Feedback</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Total Feedback</span>
+                        <span className="text-sm font-medium">{feedback.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Average Rating</span>
+                        <span className="text-sm font-medium">
+                          {feedback.length > 0 ? (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1) : 'N/A'}/5
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

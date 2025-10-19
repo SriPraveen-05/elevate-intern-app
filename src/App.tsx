@@ -17,20 +17,21 @@ import FacultyPanel from "./pages/FacultyPanel";
 import StudentAIHub from "./pages/StudentAIHub";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StudentProfile from "./pages/StudentProfile";
-import AlumniPortal from "./pages/AlumniPortal";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <DataSync />
-          <PWAInstallPrompt />
-          <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <DataSync />
+            <PWAInstallPrompt />
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/internships/:id" element={<InternshipDetails />} />
@@ -55,14 +56,6 @@ const App = () => (
               element={
                 <ProtectedRoute roles={["student"]}>
                   <StudentProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/alumni"
-              element={
-                <ProtectedRoute roles={["alumni", "faculty", "admin"]}>
-                  <AlumniPortal />
                 </ProtectedRoute>
               }
             />
@@ -92,11 +85,12 @@ const App = () => (
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

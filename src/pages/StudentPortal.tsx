@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import ReadinessCircular from "@/components/ReadinessCircular";
 import MentoringSection from "@/components/MentoringSection";
+import SkillReadinessHub from "@/components/SkillReadinessHub";
+import LogbookGenerator from "@/components/LogbookGenerator";
+import OfflineSync from "@/components/OfflineSync";
 import { useAddLogbookEntry, useApplyToInternship, useApplications, useLogbook, useModules, usePostings, useUpsertModuleProgress, useModuleProgress, useBadges, useAwardBadge, useStudentProfile } from "@/hooks/useData";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -175,6 +178,15 @@ const StudentPortal = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Readiness Dashboard */}
             <ReadinessCircular />
+
+            {/* Skill Readiness Hub */}
+            <SkillReadinessHub />
+
+            {/* Logbook Generator */}
+            <LogbookGenerator />
+
+            {/* Offline Sync */}
+            <OfflineSync />
 
             {/* Digital Logbook */}
             {/* Digital Logbook (wired) */}
