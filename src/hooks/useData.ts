@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, isAfter, parseISO } from "date-fns";
+import { 
+  getStudentProfile as getStoredStudentProfile, 
+  upsertStudentProfile as storeUpsertStudentProfile,
+  type StudentProfile as StorageStudentProfile
+} from "@/lib/storage";
 
 // Extend the StudentApplication type to include missing properties
 interface ExtendedStudentApplication extends Omit<StudentApplication, 'internshipTitle'> {
@@ -56,6 +61,48 @@ interface ExtendedStudentProfile extends Omit<StudentProfile, 'skills'> {
     level: number;
   }>;
 }
+import type { StudentProfile } from "@/types";
+
+// Mock function to get student profile
+const getStudentProfile = async (userName: string) => {
+  // Simulate API call
+  return new Promise<StudentProfile | null>((resolve) => {
+    setTimeout(() => {
+      // Get existing profiles
+      const profiles = readJson<StudentProfile[]>(STORAGE_KEYS.studentProfiles, []);
+      
+      // Find the profile or create a default one
+      let profile = profiles.find(p => p.userName === userName) || null;
+      
+      if (!profile) {
+        // Create a default profile if not found
+        profile = {
+          id: generateId('stu'),
+          userName: userName,
+          department: 'Computer Science',
+          year: 3,
+          semester: 6,
+          skills: [],
+          interests: [],
+          projects: [],
+          certifications: [],
+          academicDetails: {
+            cgpa: 8.5,
+            percentage: 85,
+            major: 'Computer Science'
+          }
+        };
+        
+        // Save the new profile
+        profiles.push(profile);
+        writeJson(STORAGE_KEYS.studentProfiles, profiles);
+      }
+      
+      resolve(profile);
+    }, 500);
+  });
+};
+
 import {
   addLogbookEntry,
   generateId,
@@ -314,8 +361,6 @@ export function useMentoringSessions(userName?: string) {
 export function useRequestMentoringSession() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { studentName: string; mentorId: string; time: string }) => Promise.resolve(requestMentoringSession(data)),
-    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["mentoringSessions", vars.studentName] })
   });
 }
 
@@ -528,11 +573,114 @@ export function useInternshipRecommendations(userId?: string) {
 }
 
 // ---------- Student Profiles ----------
+// Use the storage's StudentProfile type
+type StudentProfile = StorageStudentProfile;
+
 export function useStudentProfile(userName: string | undefined) {
   return useQuery({
     queryKey: ["profile", userName ?? "anon"],
-    queryFn: () => getStudentProfile(userName ?? ""),
+    queryFn: () => {
+      if (!userName) throw new Error("Username is required");
+      const profile = getStoredStudentProfile(userName);
+      if (!profile) {
+        // Create a default profile if not found
+        const newProfile: StudentProfile = {
+          id: `user-${Date.now()}`,
+          userName,
+          department: 'Computer Science',
+          year: 3,
+          semester: 6,
+          skills: [],
+          interests: [],
+          projects: [],
+          certifications: [],
+          academicDetails: {
+            cgpa: 8.5,
+            percentage: 85,
+            major: 'Computer Science'
+          }
+        };
+        storeUpsertStudentProfile(newProfile);
+        return newProfile;
+      }
+      return profile;
+    },
     enabled: !!userName,
+  });
+}
+
+// ---------- Student Logbook Hooks ----------
+
+export function useStudentLogbook(userId?: string) {
+  return useQuery({
+    queryKey: ["studentLogbook", userId],
+    queryFn: () => {
+      if (!userId) return null;
+      // Simulated logbook data - replace with actual API call
+      return {
+        entries: [
+          {
+            id: '1',
+            title: 'Week 1 - Project Setup',
+            date: new Date().toISOString(),
+            description: 'Set up the development environment and initialized the project repository.',
+            status: 'approved' as const,
+            feedback: 'Good job on setting up the environment!'
+          },
+          {
+            id: '2',
+            title: 'Week 2 - Feature Implementation',
+            date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            description: 'Implemented the main features for the user authentication module.',
+            status: 'pending' as const,
+            feedback: ''
+          }
+        ]
+      };
+    },
+    enabled: !!userId,
+  });
+}
+
+// ---------- Eligible Internships Hooks ----------
+
+export function useEligibleInternships(userId?: string) {
+  return useQuery({
+    queryKey: ["eligibleInternships", userId],
+    queryFn: () => {
+      if (!userId) return [];
+      // Simulated data - replace with actual API call
+      return [
+        {
+          id: '1',
+          title: 'Frontend Developer Intern',
+          company: 'Tech Corp',
+          duration: '6 months',
+          eligible: true,
+          notes: 'Eligible for 6 credits upon completion',
+          status: 'approved' as const
+        },
+        {
+          id: '2',
+          title: 'Backend Developer Intern',
+          company: 'Data Systems Inc',
+          duration: '3 months',
+          eligible: false,
+          notes: 'Requires additional coursework in databases',
+          status: 'rejected' as const
+        },
+        {
+          id: '3',
+          title: 'Full Stack Developer Intern',
+          company: 'Web Solutions Ltd',
+          duration: '4 months',
+          eligible: true,
+          notes: 'Eligible for 4 credits, pending advisor approval',
+          status: 'pending' as const
+        }
+      ];
+    },
+    enabled: !!userId,
   });
 }
 

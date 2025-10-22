@@ -1,192 +1,146 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useStudentProfile } from "@/hooks/useData";
+import { useState } from "react";
+import { format } from "date-fns";
+import { Clock, Plus, Briefcase, Trophy, BookOpen } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Clock, Trophy, MessageSquare, BarChart2, Calendar, Briefcase } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
-
-// Import child components (we'll create these next)
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import InternshipRecommendations from "./InternshipRecommendations";
 import UpcomingDeadlines from "./UpcomingDeadlines";
 import CreditsEarned from "./CreditsEarned";
 import LearningTracker from "./LearningTracker";
+import LogbookViewer from "./LogbookViewer";
+import CreditTransferEligibility from "./CreditTransferEligibility";
 import InfoBot from "./InfoBot";
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { data: profile, isLoading } = useStudentProfile(user?.id);
+  const [showAddDeadline, setShowAddDeadline] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-1/3 mb-4" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-lg" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Mock data for demonstration
+  const profile = {
+    name: user?.name || "Student",
+    credits: 15,
+    creditsToNextLevel: 5
+  };
+
+  const deadlines = [
+    { 
+      id: '1', 
+      title: 'Project Submission', 
+      dueDate: '2023-12-01', 
+      type: 'project', 
+      priority: 'high', 
+      completed: false, 
+      createdAt: new Date().toISOString(), 
+      updatedAt: new Date().toISOString() 
+    }
+  ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.name || 'Student'}</h1>
-          <p className="text-muted-foreground">
-            Track your internship journey and enhance your skills
-          </p>
-        </div>
-        <Button onClick={() => navigate('/ai')}>
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Ask InfoBot
+        <h1 className="text-2xl font-bold flex-grow">Welcome back, {profile.name}!</h1>
+        <Button 
+          variant="outline" 
+          onClick={handleLogout}
+          className="bg-white hover:bg-gray-100 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          Logout
         </Button>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">
-            <BarChart2 className="mr-2 h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="internships">
-            <Briefcase className="mr-2 h-4 w-4" />
-            Internships
-          </TabsTrigger>
-          <TabsTrigger value="learning">
-            <BookOpen className="mr-2 h-4 w-4" />
-            Learning
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Credits Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Credits Earned</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{profile.credits}</div>
+            <p className="text-xs text-muted-foreground">
+              {profile.creditsToNextLevel} to next level
+            </p>
+            <Progress 
+              value={(profile.credits / (profile.credits + profile.creditsToNextLevel)) * 100} 
+              className="h-2 mt-2" 
+            />
+          </CardContent>
+        </Card>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Credits Earned</CardTitle>
-                <Trophy className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{profile?.credits || 0}</div>
+        {/* Active Internships Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Internships</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">No active internships</p>
+          </CardContent>
+        </Card>
+
+        {/* Skills in Progress Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Skills in Progress</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">3</div>
+            <p className="text-xs text-muted-foreground">JavaScript, React, Node.js</p>
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Deadlines Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => setShowAddDeadline(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {deadlines.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-2xl font-bold">{deadlines.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  {profile?.creditsToNextLevel ? `${profile.creditsToNextLevel} to next level` : 'Keep it up!'}
+                  Next: {format(new Date(deadlines[0].dueDate), 'MMM d, yyyy')} - {deadlines[0].title}
                 </p>
-                {profile?.creditsToNextLevel && (
-                  <Progress value={(profile.credits / (profile.credits + profile.creditsToNextLevel)) * 100} className="h-2 mt-2" />
-                )}
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Internships</CardTitle>
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{profile?.activeInternships || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.pendingApplications ? `${profile.pendingApplications} pending` : 'No pending applications'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Skills in Progress</CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{profile?.skillsInProgress?.length || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.skillsInProgress?.length ? 'Keep learning!' : 'Add some skills to track'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{profile?.upcomingDeadlines?.length || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.upcomingDeadlines?.length ? 'Check deadlines tab' : 'No upcoming deadlines'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Recommended Internships</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <InternshipRecommendations />
-              </CardContent>
-            </Card>
-            
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>Learning Progress</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LearningTracker />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="internships" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Internships</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <UpcomingDeadlines />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="learning" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Skill Development</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CreditsEarned />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Learning Resources</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Browse recommended learning resources based on your profile and internship goals.
-                </p>
-                <Button variant="outline" className="mt-4">
-                  View Resources
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* InfoBot Chat Widget - Fixed position at bottom right */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <InfoBot />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-2xl font-bold">0</div>
+                <p className="text-xs text-muted-foreground">No upcoming deadlines</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Removed duplicate code and unnecessary components */}
     </div>
   );
 }
