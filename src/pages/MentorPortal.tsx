@@ -1,11 +1,12 @@
 import { useAuth } from "@/context/AuthContext";
-import { useIndustryProfile } from "@/hooks/useData";
 import { Skeleton } from "@/components/ui/skeleton";
-import IndustryDashboard from "@/components/industry/IndustryDashboard";
+import MentorDashboard from "@/components/mentor/MentorDashboard";
 
-const IndustryPortal = () => {
+export default function MentorPortal() {
   const { user } = useAuth();
-  const { data: profile, isLoading } = useIndustryProfile(user?.id);
+
+  // In a real app, you would fetch mentor data here
+  const isLoading = false;
 
   if (isLoading) {
     return (
@@ -20,7 +21,5 @@ const IndustryPortal = () => {
     );
   }
 
-  return <IndustryDashboard />;
-};
-
-export default IndustryPortal;
+  return <MentorDashboard />;
+}

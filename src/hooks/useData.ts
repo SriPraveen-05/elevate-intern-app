@@ -1,5 +1,61 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, addDays, isAfter, parseISO } from "date-fns";
+
+// Extend the StudentApplication type to include missing properties
+interface ExtendedStudentApplication extends Omit<StudentApplication, 'internshipTitle'> {
+  deadline?: string;
+  internshipTitle: string;
+}
+
+// Extend the Event type to include missing properties
+interface ExtendedEvent extends Omit<Event, 'startDate' | 'endDate'> {
+  startDate: string;
+  endDate: string;
+}
+
+// Extend the Badge type to include missing properties
+interface ExtendedBadge extends Omit<Badge, 'earnedAt'> {
+  credits?: number;
+  earned: boolean;
+  earnedAt?: string;
+}
+
+// Industry Profile type
+export interface IndustryProfile {
+  id: string;
+  companyName: string;
+  industry: string;
+  website: string;
+  logo?: string;
+  description?: string;
+  activeInternships: number;
+  totalApplicants: number;
+  newApplicants: number;
+  hireRate: number;
+  hireRateChange: number;
+  upcomingEvents: number;
+  nextEvent?: string;
+  verified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Extend the StudentProfile type to include missing properties
+interface ExtendedStudentProfile extends Omit<StudentProfile, 'skills'> {
+  internshipCredits?: number;
+  certificationCredits?: number;
+  courseCredits?: number;
+  workshopCredits?: number;
+  preferredCompanies?: string[];
+  preferredLocations?: string[];
+  preferredJobTypes?: string[];
+  skills?: string[]; // Keep as string[] to match the original type
+  skillLevels?: Array<{
+    name: string;
+    level: number;
+  }>;
+}
 import {
   addLogbookEntry,
   generateId,
@@ -260,6 +316,214 @@ export function useRequestMentoringSession() {
   return useMutation({
     mutationFn: (data: { studentName: string; mentorId: string; time: string }) => Promise.resolve(requestMentoringSession(data)),
     onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["mentoringSessions", vars.studentName] })
+  });
+}
+
+// ---------- Industry Profile Hooks ----------
+
+export function useIndustryProfile(userId?: string) {
+  return useQuery({
+    queryKey: ["industryProfile", userId],
+    queryFn: async () => {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Mock data - in a real app, this would be fetched from an API
+      return {
+        id: userId || 'industry-1',
+        companyName: 'TechCorp',
+        industry: 'Technology',
+        website: 'https://techcorp.example.com',
+        description: 'Leading technology solutions provider',
+        activeInternships: 5,
+        totalApplicants: 124,
+        newApplicants: 12,
+        hireRate: 68,
+        hireRateChange: 12,
+        upcomingEvents: 3,
+        nextEvent: 'Campus Recruitment - Nov 15',
+        verified: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as IndustryProfile;
+    },
+    enabled: !!userId,
+  });
+}
+
+// ---------- Student Dashboard Hooks ----------
+
+export function useUpcomingDeadlines(userId?: string) {
+  const { data: applications = [] } = useApplications() as { data: ExtendedStudentApplication[] };
+  const { data: events = [] } = useEvents() as { data: ExtendedEvent[] };
+  
+  return useQuery({
+    queryKey: ["upcomingDeadlines", userId],
+    queryFn: async () => {
+      // Simulate API call with combined data
+      const applicationDeadlines = applications
+        .filter(app => app.studentName === userId && app.status === 'pending')
+        .map(app => ({
+          id: `app-${app.id}`,
+          title: `Application: ${app.internshipTitle}`,
+          type: 'application' as const,
+          dueDate: app.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to 1 week from now
+          status: 'pending' as const,
+          link: `/applications/${app.id}`
+        }));
+
+      const eventDeadlines = events
+        .filter(event => isAfter(parseISO(event.endDate), new Date()))
+        .map(event => ({
+          id: `event-${event.id}`,
+          title: event.title,
+          type: 'event' as const,
+          dueDate: event.startDate,
+          status: 'pending' as const,
+          link: `/events/${event.id}`
+        }));
+
+      return [...applicationDeadlines, ...eventDeadlines]
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+        .slice(0, 10); // Return top 10 upcoming deadlines
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useStudentCredits(userId?: string) {
+  const { data: profile } = useStudentProfile(userId) as { data: ExtendedStudentProfile | undefined };
+  const { data: badges = [] } = useBadges(userId) as { data: ExtendedBadge[] };
+  
+  return useQuery({
+    queryKey: ["studentCredits", userId],
+    queryFn: async () => {
+      // Calculate credits based on profile and badges
+      const earnedBadges = badges.filter((badge: ExtendedBadge) => badge.earned);
+      const credits = earnedBadges.reduce((sum: number, badge: ExtendedBadge) => sum + (badge.credits || 0), 0);
+      
+      return {
+        internship: {
+          earned: profile?.internshipCredits || 0,
+          total: 20, // Example: 20 credits needed for internship completion
+        },
+        certifications: {
+          earned: profile?.certificationCredits || 0,
+          total: 10, // Example: 10 credits needed for certifications
+        },
+        courses: {
+          earned: profile?.courseCredits || 0,
+          total: 15, // Example: 15 credits needed for courses
+        },
+        workshops: {
+          earned: profile?.workshopCredits || 0,
+          total: 5, // Example: 5 credits needed for workshops
+        },
+        totalEarned: credits,
+        totalPossible: 50, // Sum of all credit requirements
+        level: Math.floor(credits / 10) + 1, // Level up every 10 credits
+        nextLevelProgress: (credits % 10) * 10, // Progress to next level (0-100%)
+      };
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useStudentSkills(userId?: string) {
+  const { data: profile } = useStudentProfile(userId) as { data: ExtendedStudentProfile | undefined };
+  const { data: modules = [] } = useModules();
+  const { data: progress = [] } = useModuleProgress(userId);
+
+  return useQuery({
+    queryKey: ["studentSkills", userId],
+    queryFn: async () => {
+      // Map module progress to skills with completion status
+      const skills = new Map<string, {
+        id: string;
+        name: string;
+        category: string;
+        progress: number;
+        target: number;
+        lastPracticed?: string;
+        resources: number;
+      }>();
+
+      // Process each module progress
+      progress.forEach((p: any) => {
+        const mod = modules.find((m: SkillModule) => m.id === p.moduleId);
+        if (mod) {
+          const category = 'General'; // Default category since SkillModule doesn't have category
+          const skillName = mod.title.split(' ')[0]; // Use first word of title as skill name
+          const skillId = `${category}-${skillName}`.toLowerCase();
+          
+          const existing = skills.get(skillId) || {
+            id: skillId,
+            name: skillName,
+            category,
+            progress: 0,
+            target: 100, // Default target
+            resources: 0,
+          };
+          
+          skills.set(skillId, {
+            ...existing,
+            progress: Math.max(existing.progress, p.progress || 0),
+            resources: existing.resources + 1,
+            lastPracticed: p.updatedAt || p.createdAt,
+          });
+        }
+      });
+
+      return Array.from(skills.values()).sort((a, b) => b.progress - a.progress);
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useInternshipRecommendations(userId?: string) {
+  const { data: profile } = useStudentProfile(userId) as { data: ExtendedStudentProfile | undefined };
+  const { data: postings = [] } = usePostings();
+  const { data: skills = [] } = useStudentSkills(userId);
+  
+  return useQuery({
+    queryKey: ["internshipRecommendations", userId],
+    queryFn: async () => {
+      if (!profile?.skills?.length || !skills?.length) return [];
+      
+      // Get the user's top skills (by progress)
+      const userSkillNames = new Set(
+        [...skills]
+          .sort((a, b) => b.progress - a.progress)
+          .slice(0, 5)
+          .map(skill => skill.name.toLowerCase())
+      );
+      
+      // Score postings based on skill match and other factors
+      const scoredPostings = postings.map((posting: any) => {
+        const postingSkills = posting.skills || [];
+        const matchedSkills = postingSkills.filter((skill: string) => 
+          userSkillNames.has(skill.toLowerCase())
+        );
+        
+        // Simple scoring algorithm - can be enhanced
+        const skillMatchScore = (matchedSkills.length / Math.max(1, postingSkills.length)) * 50;
+        const companyMatchScore = profile.preferredCompanies?.includes(posting.company) ? 20 : 0;
+        const locationScore = profile.preferredLocations?.includes(posting.location) ? 15 : 0;
+        const typeScore = profile.preferredJobTypes?.includes(posting.type) ? 15 : 0;
+        
+        return {
+          ...posting,
+          score: skillMatchScore + companyMatchScore + locationScore + typeScore,
+          matchedSkills,
+        };
+      });
+      
+      // Sort by score and return top 5
+      return scoredPostings
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, 5);
+    },
+    enabled: !!userId && !!profile?.skills,
   });
 }
 
