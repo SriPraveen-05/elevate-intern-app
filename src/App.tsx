@@ -18,6 +18,7 @@ import StudentAIHub from "./pages/StudentAIHub";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import StudentProfile from "./pages/StudentProfile";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import AlumniPortal from "./pages/AlumniPortal";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,14 @@ const App = () => (
               element={
                 <ProtectedRoute roles={["admin", "faculty"]}>
                   <AdminPortal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/alumni"
+              element={
+                <ProtectedRoute roles={["alumni"]}>
+                  <AlumniPortal />
                 </ProtectedRoute>
               }
             />

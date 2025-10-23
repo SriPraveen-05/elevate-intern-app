@@ -15,6 +15,7 @@ const roleRoutes: Record<string, string> = {
   faculty: "/faculty",
   admin: "/admin",
   industry: "/industry",
+  alumni: "/alumni",
 };
 
 export default function Login() {
@@ -31,7 +32,7 @@ export default function Login() {
   const [registerName, setRegisterName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
-  const [registerRole, setRegisterRole] = useState<"student" | "faculty" | "admin" | "industry">("student");
+  const [registerRole, setRegisterRole] = useState<"student" | "faculty" | "admin" | "industry" | "alumni">("student");
   const [registerDepartment, setRegisterDepartment] = useState("");
   const [registerCompany, setRegisterCompany] = useState("");
 
@@ -186,6 +187,7 @@ export default function Login() {
                       <option value="faculty">Mentor</option>
                       <option value="admin">Admin</option>
                       <option value="industry">Industry</option>
+                      <option value="alumni">Alumni</option>
                     </select>
                   </div>
                   {registerRole === "student" && (

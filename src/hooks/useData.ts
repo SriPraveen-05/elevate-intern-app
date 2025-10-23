@@ -61,48 +61,6 @@ interface ExtendedStudentProfile extends Omit<StudentProfile, 'skills'> {
     level: number;
   }>;
 }
-import type { StudentProfile } from "@/types";
-
-// Mock function to get student profile
-const getStudentProfile = async (userName: string) => {
-  // Simulate API call
-  return new Promise<StudentProfile | null>((resolve) => {
-    setTimeout(() => {
-      // Get existing profiles
-      const profiles = readJson<StudentProfile[]>(STORAGE_KEYS.studentProfiles, []);
-      
-      // Find the profile or create a default one
-      let profile = profiles.find(p => p.userName === userName) || null;
-      
-      if (!profile) {
-        // Create a default profile if not found
-        profile = {
-          id: generateId('stu'),
-          userName: userName,
-          department: 'Computer Science',
-          year: 3,
-          semester: 6,
-          skills: [],
-          interests: [],
-          projects: [],
-          certifications: [],
-          academicDetails: {
-            cgpa: 8.5,
-            percentage: 85,
-            major: 'Computer Science'
-          }
-        };
-        
-        // Save the new profile
-        profiles.push(profile);
-        writeJson(STORAGE_KEYS.studentProfiles, profiles);
-      }
-      
-      resolve(profile);
-    }, 500);
-  });
-};
-
 import {
   addLogbookEntry,
   generateId,
@@ -361,6 +319,8 @@ export function useMentoringSessions(userName?: string) {
 export function useRequestMentoringSession() {
   const qc = useQueryClient();
   return useMutation({
+    mutationFn: (data: { mentorId: string; studentName: string; time: string }) => Promise.resolve(requestMentoringSession(data)),
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["mentoringSessions", vars.studentName] })
   });
 }
 
@@ -573,8 +533,6 @@ export function useInternshipRecommendations(userId?: string) {
 }
 
 // ---------- Student Profiles ----------
-// Use the storage's StudentProfile type
-type StudentProfile = StorageStudentProfile;
 
 export function useStudentProfile(userName: string | undefined) {
   return useQuery({
@@ -584,7 +542,7 @@ export function useStudentProfile(userName: string | undefined) {
       const profile = getStoredStudentProfile(userName);
       if (!profile) {
         // Create a default profile if not found
-        const newProfile: StudentProfile = {
+        const newProfile: StorageStudentProfile = {
           id: `user-${Date.now()}`,
           userName,
           department: 'Computer Science',
@@ -598,7 +556,8 @@ export function useStudentProfile(userName: string | undefined) {
             cgpa: 8.5,
             percentage: 85,
             major: 'Computer Science'
-          }
+          },
+          upcomingDeadlines: []
         };
         storeUpsertStudentProfile(newProfile);
         return newProfile;
@@ -687,7 +646,7 @@ export function useEligibleInternships(userId?: string) {
 export function useUpsertStudentProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (profile: StudentProfile) => Promise.resolve(upsertStudentProfile(profile)),
+    mutationFn: (profile: StorageStudentProfile) => Promise.resolve(upsertStudentProfile(profile)),
     onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ["profile", vars.userName] })
   });
 }
