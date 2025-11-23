@@ -1,11 +1,6 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, addDays, isAfter, parseISO } from "date-fns";
-import { 
-  getStudentProfile as getStoredStudentProfile, 
-  upsertStudentProfile as storeUpsertStudentProfile,
-  type StudentProfile as StorageStudentProfile
-} from "@/lib/storage";
+import { isAfter, parseISO } from "date-fns";
 
 // Extend the StudentApplication type to include missing properties
 interface ExtendedStudentApplication extends Omit<StudentApplication, 'internshipTitle'> {
@@ -61,47 +56,6 @@ interface ExtendedStudentProfile extends Omit<StudentProfile, 'skills'> {
     level: number;
   }>;
 }
-import type { StudentProfile } from "@/types";
-
-// Mock function to get student profile
-const getStudentProfile = async (userName: string) => {
-  // Simulate API call
-  return new Promise<StudentProfile | null>((resolve) => {
-    setTimeout(() => {
-      // Get existing profiles
-      const profiles = readJson<StudentProfile[]>(STORAGE_KEYS.studentProfiles, []);
-      
-      // Find the profile or create a default one
-      let profile = profiles.find(p => p.userName === userName) || null;
-      
-      if (!profile) {
-        // Create a default profile if not found
-        profile = {
-          id: generateId('stu'),
-          userName: userName,
-          department: 'Computer Science',
-          year: 3,
-          semester: 6,
-          skills: [],
-          interests: [],
-          projects: [],
-          certifications: [],
-          academicDetails: {
-            cgpa: 8.5,
-            percentage: 85,
-            major: 'Computer Science'
-          }
-        };
-        
-        // Save the new profile
-        profiles.push(profile);
-        writeJson(STORAGE_KEYS.studentProfiles, profiles);
-      }
-      
-      resolve(profile);
-    }, 500);
-  });
-};
 
 import {
   addLogbookEntry,
@@ -573,15 +527,13 @@ export function useInternshipRecommendations(userId?: string) {
 }
 
 // ---------- Student Profiles ----------
-// Use the storage's StudentProfile type
-type StudentProfile = StorageStudentProfile;
 
 export function useStudentProfile(userName: string | undefined) {
   return useQuery({
     queryKey: ["profile", userName ?? "anon"],
     queryFn: () => {
       if (!userName) throw new Error("Username is required");
-      const profile = getStoredStudentProfile(userName);
+      const profile = getStudentProfile(userName);
       if (!profile) {
         // Create a default profile if not found
         const newProfile: StudentProfile = {
@@ -598,9 +550,10 @@ export function useStudentProfile(userName: string | undefined) {
             cgpa: 8.5,
             percentage: 85,
             major: 'Computer Science'
-          }
+          },
+          upcomingDeadlines: []
         };
-        storeUpsertStudentProfile(newProfile);
+        upsertStudentProfile(newProfile);
         return newProfile;
       }
       return profile;
